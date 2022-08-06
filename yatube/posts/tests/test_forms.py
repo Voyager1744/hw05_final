@@ -200,5 +200,3 @@ class PostFormTests(TestCase):
         create_url = reverse('posts:add_comment', args=(self.post.id,))
         expected_url = f'{login_url}?next={create_url}'
         self.assertRedirects(response, expected_url)
-
-
