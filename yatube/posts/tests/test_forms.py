@@ -10,9 +10,9 @@ class PostFormTests(TestCase):
     fake = Faker()
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         """Создаём автора и две группы."""
-        super().setUpClass()
+
         cls.author = User.objects.create_user(username=cls.fake.user_name())
         cls.author_2 = User.objects.create_user(username=cls.fake.user_name())
         cls.group_1 = Group.objects.create(
@@ -23,19 +23,19 @@ class PostFormTests(TestCase):
             title='Вторая тестовая группа',
             slug='group_test_2'
         )
+        cls.post = Post.objects.create(
+            text=cls.fake.text(),
+            author=cls.author,
+            group=cls.group_1)
+        cls.post_2 = Post.objects.create(
+            text=cls.fake.text(),
+            author=cls.author_2,
+            group=cls.group_1)
 
     def setUp(self):
-        """Создаём клиента и пост."""
+        """Создаём клиента."""
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
-        self.post = Post.objects.create(
-            text=self.fake.text(),
-            author=self.author,
-            group=self.group_1)
-        self.post_2 = Post.objects.create(
-            text=self.fake.text(),
-            author=self.author_2,
-            group=self.group_1)
 
     def test_create_post_form(self):
         """При отправке валидной формы со страницы создания поста
@@ -60,9 +60,10 @@ class PostFormTests(TestCase):
             response,
             reverse('posts:profile', args=(self.author.username,)),
         )
-        self.assertEqual(first_post.text, self.post.text, 'не тот текст')
+        self.assertEqual(first_post.text, form_data['text'], 'не тот текст')
         self.assertEqual(first_post.author, self.post.author, 'не тот автор')
-        self.assertEqual(first_post.group, self.post.group, 'не та группа')
+        self.assertEqual(first_post.group.id,
+                         form_data['group'], 'не та группа')
 
     def test_edit_post_form(self):
         """Проверка изменений поста в базе данных.
@@ -77,7 +78,7 @@ class PostFormTests(TestCase):
             slug='new_group'
         )
         text_new_post = test_post.text
-        group_new_post = test_post.group
+        group_new_post = test_post.group.id
         count_posts_before = Post.objects.count()
         form_data = {
             'text': 'Измененный текст поста',
@@ -96,12 +97,12 @@ class PostFormTests(TestCase):
             'Количество постов изменилось!')
 
         self.assertNotEqual(
-            modified_post.text,
+            form_data['text'],
             text_new_post,
             'Текст поста не изменился!'
         )
         self.assertNotEqual(
-            modified_post.group,
+            form_data['group'],
             group_new_post,
             'Группа у поста не изменилась!'
         )
@@ -118,8 +119,15 @@ class PostFormTests(TestCase):
     def test_authorized_cant_edit_not_author_post(self):
         """Авторизированный пользователь не может редактировать чужой пост."""
         count_posts_before = Post.objects.count()
+        form_data = {
+            'text': self.post.text,
+            'group': self.group_1.id
+        }
         response = self.authorized_client.post(
-            reverse('posts:post_edit', args=(self.post_2.id,)), follow=True)
+            reverse('posts:post_edit', args=(self.post_2.id,)),
+            data=form_data,
+            follow=True
+        )
         expected_url = reverse('posts:post_detail', args=(self.post_2.id,))
         count_posts_after = Post.objects.count()
         self.assertRedirects(response, expected_url)
@@ -127,6 +135,8 @@ class PostFormTests(TestCase):
             count_posts_before,
             count_posts_after,
             'Количество постов изменилось!')
+        self.assertNotEqual(self.post_2.text, form_data['text'])
+        self.assertNotEqual(self.post_2.group, form_data['group'])
 
     def test_not_authorized_cant_create_post_and_redirect_login(self):
         """Неавторизованный пользователь не может создать пост,
@@ -157,21 +167,16 @@ class PostFormTests(TestCase):
         form_data = {
             'text': 'Тестовый комментарий',
         }
-        response = self.authorized_client.post(
+        self.authorized_client.post(
             reverse('posts:add_comment', args=(self.post.id,)),
             data=form_data,
             follow=True,
         )
         self.assertEqual(Comment.objects.count(), comments_count + 1)
 
-        self.assertTrue(
-            Comment.objects.filter(
-                text='Тестовый комментарий',
-            ).exists()
-        )
-        added_comment = response.context["comments"][0]
-        self.assertEqual(added_comment.post, self.post)
-        self.assertEqual(added_comment.author, self.author)
+        added_comment = Comment.objects.last()
+        self.assertEqual(added_comment.post.id, self.post.id)
+        self.assertEqual(added_comment.author, self.post.author)
         self.assertEqual(added_comment.text, form_data["text"])
 
     def test_comment_form_not_auth(self):
