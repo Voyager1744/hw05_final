@@ -9,7 +9,7 @@
         {% if post.group %}
           <li class="list-group-item">
             Группа: {{ post.group }}
-            <a href={% url 'posts:group_list' post.group.slug %}>все записи группы</a>
+            <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
           </li>
         {% endif %}
         <li class="list-group-item">Автор: {{ post.author.get_full_name }}</li>
@@ -17,7 +17,7 @@
           Всего постов автора: <span>{{ post.author.posts.count }}</span>
         </li>
         <li class="list-group-item">
-          <a href={% url 'posts:profile' post.author.username %}>все посты пользователя</a>
+          <a href="{% url 'posts:profile' post.author.username %}">все посты пользователя</a>
         </li>
       </ul>
     </aside>
