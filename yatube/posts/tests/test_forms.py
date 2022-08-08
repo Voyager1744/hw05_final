@@ -7,6 +7,9 @@ from ..models import Group, Post, User, Comment
 
 
 class PostFormTests(TestCase):
+    group_1 = None
+    author = None
+    author_2 = None
     fake = Faker()
 
     @classmethod

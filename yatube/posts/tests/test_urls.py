@@ -8,16 +8,22 @@ from ..models import Post, Group, User
 
 
 class PostsUrlTest(TestCase):
+    group = None
+    author = None
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         """Создаём Пользователя и группу."""
-        super().setUpClass()
         cls.author = User.objects.create_user(username='author')
         cls.not_author = User.objects.create_user(username='not_author')
         cls.group = Group.objects.create(
             title='test_title',
             slug='test_slug'
+        )
+        cls.post = Post.objects.create(
+            text='Тестовый текст',
+            author=cls.author,
+            group=cls.group,
         )
 
     def setUp(self) -> None:
@@ -35,13 +41,11 @@ class PostsUrlTest(TestCase):
         )
 
     def test_url_is_available_to_the_authorized(self):
-        """Приватные страницы доступны авторизованным пользователям,
-        при запросе несуществующей страницы  переходит на 404.
+        """Приватные страницы доступны авторизованным пользователям.
         """
         url_names_httpstatus = {
             reverse('posts:post_create'): HTTPStatus.OK,
             reverse('posts:post_edit', args=(self.post.id,)): HTTPStatus.OK,
-            '/unexciting_page/': HTTPStatus.NOT_FOUND
         }
         for address, httpstatus in url_names_httpstatus.items():
             with self.subTest(address=address):
@@ -49,8 +53,7 @@ class PostsUrlTest(TestCase):
                 self.assertEqual(response.status_code, httpstatus)
 
     def test_url_is_available_to_the_not_authorized(self):
-        """Публичные адреса доступны для неавторизованных пользователей,
-        при запросе несуществующей страницы  переходит на 404.
+        """Публичные адреса доступны для неавторизованных пользователей.
         """
         url_names_httpstatus = {
             reverse('posts:index'): HTTPStatus.OK,
@@ -58,17 +61,20 @@ class PostsUrlTest(TestCase):
                     args=(self.group.slug,)): HTTPStatus.OK,
             reverse('posts:profile',
                     args=(self.author.username,)): HTTPStatus.OK,
-            reverse('posts:post_create'): HTTPStatus.FOUND,
-            reverse('posts:post_edit', args=(self.post.id,)): HTTPStatus.FOUND,
-            '/unexciting_page/': HTTPStatus.NOT_FOUND
         }
         for address, httpstatus in url_names_httpstatus.items():
             with self.subTest(address=address):
                 response = self.client.get(address)
                 self.assertEqual(response.status_code, httpstatus)
 
+    def test_availability_404_page(self):
+        """Тестирование доступности адреса страницы 404."""
+        response = self.client.get('/unexciting_page/')
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
     def test_redirect_guest_client_on_login(self):
-        """Тест приватные адреса не доступны для неавторизованных пользователей,
+        """Тест приватные адреса не доступны для
+        неавторизованных пользователей,
         ведут на страницу авторизации.
         """
         login_url = reverse('users:login')
@@ -82,19 +88,6 @@ class PostsUrlTest(TestCase):
         self.assertRedirects(
             self.client.get(address_url), expected_url)
 
-    def test_url_edit_post_access_author(self):
-        """Страница редактирования и создания поста
-        доступна автору поста.
-        """
-
-        response = self.authorized_client_author.get(
-            reverse('posts:post_edit', args=(self.post.id,)))
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-        response = self.authorized_client_author.get(
-            reverse('posts:post_create'))
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
     def test_redirect_url_edit_post_no_author_to_post(self):
         """Перенаправление всех, кроме автора со страницы
          редактирования на страницу просмотра поста.
@@ -102,4 +95,19 @@ class PostsUrlTest(TestCase):
         response = self.authorized_client.get(
             reverse('posts:post_edit', args=(self.post.id,)), follow=True)
         expected_url = reverse('posts:post_detail', args=(self.post.id,))
+        self.assertRedirects(response, expected_url)
+
+    def test_follow_page_for_auth(self):
+        response = self.authorized_client.get(
+            reverse('posts:follow_index'))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_follow_page_for_not_auth_redirect(self):
+        """Недоступность адреса /follow/ и последующий редирект
+        на страницу авторизации для неавторизованных клиентов.
+        """
+        response = self.client.get(reverse('posts:follow_index'), follow=True)
+        login_url = reverse('users:login')
+        address = reverse('posts:follow_index')
+        expected_url = f'{login_url}?next={address}'
         self.assertRedirects(response, expected_url)
