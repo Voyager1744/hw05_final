@@ -1,9 +1,9 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render, get_object_or_404
 
-from posts.forms import PostForm, CommentForm
-from posts.models import Post, Group, User, Comment, Follow
-from posts.utils import get_paginator
+from .forms import PostForm, CommentForm
+from .models import Post, Group, User, Comment, Follow
+from .utils import get_paginator
 
 
 def index(request):
@@ -140,9 +140,21 @@ def follow_index(request):
 def profile_follow(request, username):
     """Подписаться на автора."""
     author = get_object_or_404(User, username=username)
-    is_follow = request.user.follower.filter(author=author).exists()
-    if request.user != author and not is_follow:
-        request.user.follower.create(author=author)
+    if author == request.user:
+        return redirect(
+            'posts:profile',
+            username=username
+        )
+    follower = Follow.objects.filter(
+        user=request.user,
+        author=author
+    ).exists()
+    if follower is True:
+        return redirect(
+            'posts:profile',
+            username=username
+        )
+    Follow.objects.create(user=request.user, author=author)
     return redirect(
         'posts:profile',
         username=username

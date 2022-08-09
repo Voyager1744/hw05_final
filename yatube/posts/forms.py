@@ -15,7 +15,8 @@ class PostForm(ModelForm):
         }
         labels = {
             'text': _('Текст поста'),
-            'group': _('Выберите группу')
+            'group': _('Выберите группу'),
+            'image': _('Загрузить изображение')
         }
         help_texts = {
             'text': _('Текст нового поста'),
@@ -25,12 +26,7 @@ class PostForm(ModelForm):
 
 class CommentForm(ModelForm):
     """Форма для создания и редактирования комментариев."""
+
     class Meta:
         model = Comment
         fields = ('text',)
-        # widgets = {
-        #     'text': Textarea(attrs={'cols': 80, 'rows': 10}),
-        # }
-        # labels = {
-        #     'text': _('Текст комментария'),
-        # }

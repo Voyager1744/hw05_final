@@ -98,6 +98,7 @@ class PostsUrlTest(TestCase):
         self.assertRedirects(response, expected_url)
 
     def test_follow_page_for_auth(self):
+        """Доступность адреса /follow/ для авторизованного клиента"""
         response = self.authorized_client.get(
             reverse('posts:follow_index'))
         self.assertEqual(response.status_code, HTTPStatus.OK)
