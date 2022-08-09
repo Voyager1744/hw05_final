@@ -357,9 +357,11 @@ class FollowTest(TestCase):
             user=self.follower, author=self.author_2).count()
         self.create = Follow.objects.create(author=self.author_2,
                                             user=self.follower)
-        self.assertEqual(Follow.objects.filter(
-            user=self.follower, author=self.author_2).count(),
-                         count_before + 1)
+        self.assertEqual(
+            Follow.objects.filter(
+                user=self.follower, author=self.author_2).count(),
+            count_before + 1
+        )
         self.authorized_client.get(
             reverse(
                 'posts:profile_unfollow',
