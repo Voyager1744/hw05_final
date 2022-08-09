@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render, get_object_or_404
+from django.conf import settings
 
 from .forms import PostForm, CommentForm
 from .models import Post, Group, User, Comment, Follow
@@ -19,6 +20,7 @@ def index(request):
 
     context = {
         'page_obj': page_obj,
+        'cache_time': settings.CACHE_TIME_SEC
     }
     return render(request, 'posts/index.html', context)
 
@@ -61,7 +63,7 @@ def profile(request, username):
 def post_detail(request, post_id):
     """Подробная информация поста."""
     post = get_object_or_404(Post, id=post_id)
-    comments = Comment.objects.filter(post_id=post_id)
+    comments = Comment.objects.filter(post_id=post_id).order_by('-created')
     form_comments = CommentForm(request.POST or None)
     context = {
         'post': post,
@@ -120,7 +122,7 @@ def add_comment(request, post_id):
         comment = form.save(commit=False)
         comment.author = request.user
         comment.post = post
-        comment.save()
+        form.save()
     return redirect('posts:post_detail', post_id=post_id)
 
 

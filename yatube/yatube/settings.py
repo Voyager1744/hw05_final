@@ -95,6 +95,8 @@ QTY_POSTS = 10
 
 FIRST_CHARS_POST = 15
 
+CACHE_TIME_SEC = 20
+
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_URL = '/static/'
 

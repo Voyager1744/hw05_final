@@ -289,11 +289,17 @@ class PostImageTest(TestCase):
 
 
 class FollowTest(TestCase):
+    author = None
+
     @classmethod
     def setUpTestData(cls):
         """Создаём автора и подписчика."""
         cls.author = User.objects.create(
             username='Author_1'
+        )
+        cls.post = Post.objects.create(
+            author=cls.author,
+            text='test_text'
         )
         cls.follower = User.objects.create(
             username='Follower_1'
@@ -364,10 +370,44 @@ class FollowTest(TestCase):
             user=self.follower, author=self.author_2).count(), count_before)
 
     def test_show_author_post_on_follower_page(self):
-        ...
+        """Отображение постов автора в ленте подписок у
+        подписанных на автора пользователей.
+        """
+        Follow.objects.create(user=self.follower, author=self.author)
+        response = self.authorized_client.get(reverse('posts:follow_index'))
+        self.assertIn('page_obj', response.context)
+        post_text = response.context['page_obj'][0].text
+        self.assertEqual(post_text, self.post.text)
 
     def test_not_show_author_post_on_not_follower_page(self):
-        ...
+        """Отсутствие постов автора в ленте подписок у
+        неподписанных на автора пользователей.
+        """
+        Follow.objects.create(user=self.follower, author=self.author)
+        response = self.authorized_client.get(reverse('posts:follow_index'))
+        self.assertIn('page_obj', response.context)
+
+        self.authorized_client.logout()
+        User.objects.create_user(
+            username='user_temp',
+            password='pass'
+        )
+        self.authorized_client.login(username='user_temp', password='pass')
+        response = self.authorized_client.get(reverse('posts:follow_index'))
+        self.assertNotIn(self.post, response.context['page_obj'])
 
     def test_user_not_follow_yourself(self):
-        ...
+        """Пользователь не может подписаться сам на себя."""
+        count_before = Follow.objects.filter(
+            user=self.follower, author=self.follower).count()
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_follow',
+                args=(self.follower.username,)
+            )
+        )
+        self.assertEqual(
+            Follow.objects.filter(
+                user=self.follower, author=self.follower).count(),
+            count_before
+        )
