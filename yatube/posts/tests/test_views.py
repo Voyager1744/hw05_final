@@ -75,9 +75,9 @@ class PostViewTest(TestCase):
     def test_index_have_correct_context(self):
         """В шаблон index передается верный контекст."""
         response = self.client.get(reverse('posts:index'))
-        first_object = response.context['page_obj'][0]
+        last_added_object = response.context['page_obj'][0]
         self.assertIn('page_obj', response.context)
-        self.assertEqual(first_object, self.post_1)
+        self.assertEqual(last_added_object, self.post_1)
 
     def test_group_list_have_correct_context(self):
         """В шаблон group_list передается верный контекст."""
@@ -119,7 +119,7 @@ class PostViewTest(TestCase):
         response = self.authorized_client_1.get(reverse('posts:post_create'))
         self.assertIn('form', response.context)
         form_in_context = response.context['form']
-        self.assertEqual(type(form_in_context), type(PostForm()))
+        self.assertIsInstance(form_in_context, PostForm)
 
     def test_post_edit_have_correct_context(self):
         """В шаблон страницы post_edit передается верный контекст."""
@@ -269,19 +269,19 @@ class PostImageTest(TestCase):
             text='Новый тестовый текст',
             author=self.author_1,
         )
-        response = self.authorized_client.get(
+        response = self.client.get(
             reverse('posts:index')
         )
         resp_before = response.content
         post_deleted = Post.objects.get(id=new_test_post.id)
         post_deleted.delete()
-        response_another = self.authorized_client.get(
+        response_another = self.client.get(
             reverse('posts:index')
         )
         resp_after = response_another.content
         self.assertTrue(resp_before == resp_after)
         cache.clear()
-        response_another = self.authorized_client.get(
+        response_another = self.client.get(
             reverse('posts:index')
         )
         resp_after = response_another.content

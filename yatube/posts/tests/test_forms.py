@@ -65,8 +65,8 @@ class PostFormTests(TestCase):
         )
         self.assertEqual(first_post.text, form_data['text'], 'не тот текст')
         self.assertEqual(first_post.author, self.post.author, 'не тот автор')
-        self.assertEqual(first_post.group.id,
-                         form_data['group'], 'не та группа')
+        self.assertEqual(first_post.group,
+                         self.group_1, 'не та группа')
 
     def test_edit_post_form(self):
         """Проверка изменений поста в базе данных.
@@ -81,7 +81,7 @@ class PostFormTests(TestCase):
             slug='new_group'
         )
         text_new_post = test_post.text
-        group_new_post = test_post.group.id
+        group_new_post = test_post.group
         count_posts_before = Post.objects.count()
         form_data = {
             'text': 'Измененный текст поста',
@@ -105,7 +105,7 @@ class PostFormTests(TestCase):
             'Текст поста не изменился!'
         )
         self.assertNotEqual(
-            form_data['group'],
+            new_group,
             group_new_post,
             'Группа у поста не изменилась!'
         )
@@ -121,25 +121,29 @@ class PostFormTests(TestCase):
 
     def test_authorized_cant_edit_not_author_post(self):
         """Авторизированный пользователь не может редактировать чужой пост."""
+        test_post = Post.objects.create(
+            author=self.author_2,
+            text='test_text'
+        )
         count_posts_before = Post.objects.count()
         form_data = {
             'text': self.post.text,
             'group': self.group_1.id
         }
         response = self.authorized_client.post(
-            reverse('posts:post_edit', args=(self.post_2.id,)),
+            reverse('posts:post_edit', args=(test_post.id,)),
             data=form_data,
             follow=True
         )
-        expected_url = reverse('posts:post_detail', args=(self.post_2.id,))
+        expected_url = reverse('posts:post_detail', args=(test_post.id,))
         count_posts_after = Post.objects.count()
         self.assertRedirects(response, expected_url)
         self.assertEqual(
             count_posts_before,
             count_posts_after,
             'Количество постов изменилось!')
-        self.assertNotEqual(self.post_2.text, form_data['text'])
-        self.assertNotEqual(self.post_2.group, form_data['group'])
+        self.assertNotEqual(test_post.text, form_data['text'])
+        self.assertNotEqual(test_post.group, self.group_1)
 
     def test_not_authorized_cant_create_post_and_redirect_login(self):
         """Неавторизованный пользователь не может создать пост,
@@ -170,7 +174,7 @@ class PostFormTests(TestCase):
         form_data = {
             'text': 'Тестовый комментарий',
         }
-        self.authorized_client.post(
+        response = self.authorized_client.post(
             reverse('posts:add_comment', args=(self.post.id,)),
             data=form_data,
             follow=True,
@@ -178,15 +182,16 @@ class PostFormTests(TestCase):
         self.assertEqual(Comment.objects.count(), comments_count + 1)
 
         added_comment = Comment.objects.last()
-        self.assertEqual(added_comment.post.id, self.post.id)
-        self.assertEqual(added_comment.author, self.post.author)
+        self.assertEqual(added_comment.post, self.post)
+        self.assertEqual(added_comment.author, self.author)
         self.assertEqual(added_comment.text, form_data["text"])
+        self.assertRedirects(
+            response, reverse('posts:post_detail', args=(self.post.id,))
+        )
 
     def test_comment_form_not_auth(self):
         """Тест неавторизованный пользователь не может
-        комментировать посты,
-        комментарий не появляется на странице,
-        пользователя перенаправляет на страницу авторизации.
+        комментировать посты.
         """
         comments_count = Comment.objects.count()
         form_data = {
@@ -201,7 +206,7 @@ class PostFormTests(TestCase):
 
         self.assertFalse(
             Comment.objects.filter(
-                text='Тестовый комментарий',
+                text=form_data['text'],
             ).exists()
         )
         login_url = reverse('users:login')

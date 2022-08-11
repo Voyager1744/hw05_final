@@ -34,11 +34,6 @@ class PostsUrlTest(TestCase):
         self.authorized_client.force_login(self.not_author)
         self.authorized_client_author = Client()
         self.authorized_client_author.force_login(self.author)
-        self.post = Post.objects.create(
-            text='Тестовый текст',
-            author=self.author,
-            group=self.group,
-        )
 
     def test_url_is_available_to_the_authorized(self):
         """Приватные страницы доступны авторизованным пользователям.
@@ -55,17 +50,18 @@ class PostsUrlTest(TestCase):
     def test_url_is_available_to_the_not_authorized(self):
         """Публичные адреса доступны для неавторизованных пользователей.
         """
-        url_names_httpstatus = {
-            reverse('posts:index'): HTTPStatus.OK,
+        url_names_httpstatus = (
+            reverse('posts:index'),
             reverse('posts:group_list',
-                    args=(self.group.slug,)): HTTPStatus.OK,
+                    args=(self.group.slug,)),
             reverse('posts:profile',
-                    args=(self.author.username,)): HTTPStatus.OK,
-        }
-        for address, httpstatus in url_names_httpstatus.items():
+                    args=(self.author.username,)),
+            reverse('posts:post_detail', args=(self.post.id,)),
+        )
+        for address in url_names_httpstatus:
             with self.subTest(address=address):
                 response = self.client.get(address)
-                self.assertEqual(response.status_code, httpstatus)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_availability_404_page(self):
         """Тестирование доступности адреса страницы 404."""
