@@ -350,26 +350,24 @@ class FollowTest(TestCase):
 
     def test_remove_follow(self):
         """Авторизованный пользователь может отписаться."""
-        self.objects_create = User.objects.create(username='Author_2')
-        self.self_objects_create = self.objects_create
-        self.author_2 = self.self_objects_create
+        author_test = User.objects.create(username='Author_test')
         count_before = Follow.objects.filter(
-            user=self.follower, author=self.author_2).count()
-        self.create = Follow.objects.create(author=self.author_2,
-                                            user=self.follower)
+            user=self.follower, author=author_test).count()
+        Follow.objects.create(
+            author=author_test, user=self.follower)
         self.assertEqual(
             Follow.objects.filter(
-                user=self.follower, author=self.author_2).count(),
+                user=self.follower, author=author_test).count(),
             count_before + 1
         )
         self.authorized_client.get(
             reverse(
                 'posts:profile_unfollow',
-                args=(self.author_2.username,)
+                args=(author_test.username,)
             )
         )
         self.assertEqual(Follow.objects.filter(
-            user=self.follower, author=self.author_2).count(), count_before)
+            user=self.follower, author=author_test).count(), count_before)
 
     def test_show_author_post_on_follower_page(self):
         """Отображение постов автора в ленте подписок у
@@ -378,8 +376,8 @@ class FollowTest(TestCase):
         Follow.objects.create(user=self.follower, author=self.author)
         response = self.authorized_client.get(reverse('posts:follow_index'))
         self.assertIn('page_obj', response.context)
-        post_text = response.context['page_obj'][0].text
-        self.assertEqual(post_text, self.post.text)
+        last_post = response.context['page_obj'][0]
+        self.assertEqual(last_post, self.post)
 
     def test_not_show_author_post_on_not_follower_page(self):
         """Отсутствие постов автора в ленте подписок у
@@ -388,13 +386,8 @@ class FollowTest(TestCase):
         Follow.objects.create(user=self.follower, author=self.author)
         response = self.authorized_client.get(reverse('posts:follow_index'))
         self.assertIn('page_obj', response.context)
-
-        self.authorized_client.logout()
-        User.objects.create_user(
-            username='user_temp',
-            password='pass'
-        )
-        self.authorized_client.login(username='user_temp', password='pass')
+        other_follower = User.objects.create(username='Other_follower')
+        self.authorized_client.force_login(other_follower)
         response = self.authorized_client.get(reverse('posts:follow_index'))
         self.assertNotIn(self.post, response.context['page_obj'])
 
