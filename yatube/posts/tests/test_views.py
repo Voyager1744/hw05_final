@@ -383,13 +383,15 @@ class FollowTest(TestCase):
         """Отсутствие постов автора в ленте подписок у
         неподписанных на автора пользователей.
         """
-        Follow.objects.create(user=self.follower, author=self.author)
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertIn('page_obj', response.context)
-        other_follower = User.objects.create(username='Other_follower')
-        self.authorized_client.force_login(other_follower)
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertNotIn(self.post, response.context['page_obj'])
+        other_follower = User.objects.create(username='other_follower')
+        post_test = Post.objects.create(
+            author=other_follower,
+            text='test_text'
+        )
+        new_client = Client()
+        new_client.force_login(other_follower)
+        response = new_client.get(reverse('posts:follow_index'))
+        self.assertNotIn(post_test, response.context['page_obj'])
 
     def test_user_not_follow_yourself(self):
         """Пользователь не может подписаться сам на себя."""
