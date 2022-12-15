@@ -76,7 +76,7 @@ def post_detail(request, post_id):
 @login_required
 def post_create(request):
     """Создание поста."""
-    form = PostForm(request.POST or None)
+    form = PostForm(request.POST or None, files=request.FILES or None)
     if form.is_valid():
         form.instance.author = request.user
         form.save()
